@@ -1,0 +1,18 @@
+.login-body {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.login-body form {
+    width: 40%;
+    height: auto;
+    background-color: #fff;
+    padding: 50px 50px;
+    border-radius: 30px;
+    box-shadow: 1px 5px 20px rgb(141, 141, 141);
+}
+.login-body h1 {
+    text-align: center;
+}

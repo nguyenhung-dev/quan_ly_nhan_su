@@ -18,9 +18,11 @@ return new class extends Migration {
             $table->string('phone')->nullable();
             $table->string('adress')->nullable();
             $table->date('birthday')->nullable();
-            $table->date('avatar')->nullable();
-            $table->enum('gender', ['male,', 'female', 'orther'])->nullable();
+            $table->string('avatar')->nullable();
+            $table->enum('gender', ['male', 'female', 'orther'])->nullable();
             $table->enum('role', ['admin', 'staff'])->default('staff');
+            $table->unsignedBigInteger('position_id');
+            $table->foreign('position_id')->references('id')->on('positions')->onDelete('cascade');
             $table->rememberToken();
             $table->timestamps();
         });
