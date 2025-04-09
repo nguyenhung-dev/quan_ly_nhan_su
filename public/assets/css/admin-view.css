@@ -67,6 +67,9 @@ header.admin-menu .header-action .avatar img {
 .dashboard ul li:hover a {
     color: #40a2ed !important;
 }
+.dashboard ul li.active a {
+    color: #40a2ed !important;
+}
 .dashboard ul a {
     font-size: 14px;
     font-weight: 500;

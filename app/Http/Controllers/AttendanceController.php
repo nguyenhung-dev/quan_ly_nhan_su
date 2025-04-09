@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Position;
 use Illuminate\Support\Facades\Auth;
 
 class AttendanceController extends Controller
@@ -17,6 +18,7 @@ class AttendanceController extends Controller
      */
     public function index()
     {
+        $this->authorizeRole('staff');
         $user = Auth::user();
         $userId = $user->id;
 
@@ -62,6 +64,7 @@ class AttendanceController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeRole('staff');
         $user = Auth::user();
         if (!$user || $user->role !== 'staff') {
             return redirect()->route('login')->with('error', 'Không có quyền chấm công.');
@@ -85,11 +88,11 @@ class AttendanceController extends Controller
 
         return redirect()->route('employee.index')->with('success', 'Chấm công thành công!');
     }
-    public function updateInfo(Request $request)
+    public function updateInfo(Request $request, User $user)
     {
+        $this->authorizeRole('staff');
         $user = Auth::user();
 
-        // Kiểm tra nếu email bị thay đổi thì mới áp dụng rule unique
         $emailRule = $request->email !== $user->email
             ? 'required|email|unique:users,email'
             : 'required|email';
@@ -117,12 +120,9 @@ class AttendanceController extends Controller
         if (!empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         } else {
-            unset($validated['password']); // Không cập nhật nếu không có
+            unset($validated['password']);
         }
 
-        // Không cho cập nhật role hoặc position_id ở đây (nếu cần bảo mật thêm)
-
-        // Cập nhật thông tin
         $user->update($validated);
 
         return redirect()->route('employee.index')->with('success', 'Cập nhật tài khoản thành công');
@@ -160,47 +160,57 @@ class AttendanceController extends Controller
     {
         //
     }
+    public function myInfo()
+    {
+        $this->authorizeRole('staff');
+        $user = Auth::user();
+        $positions = Position::all();
+        return view('employee.my-info', compact('user', 'positions'));
+    }
 
     public function indexForAdmin()
     {
-        // Lấy tất cả nhân viên
+        $this->authorizeRole('admin');
+
+        $month = Carbon::now()->month;
+        $year = Carbon::now()->year;
+
         $users = User::where('role', '!=', 'admin')->get();
 
-        // Tạo một mảng để chứa dữ liệu attendances
-        $attendances = [];
+        $daysInMonth = collect();
+        $startOfMonth = Carbon::create($year, $month, 1);
+        $endOfMonth = $startOfMonth->copy()->endOfMonth();
 
-        // Lặp qua tất cả các nhân viên
-        foreach ($users as $user) {
-            // Lấy bản ghi chấm công của nhân viên trong tuần này (hoặc ngày hôm nay)
-            $attendance = Attendance::where('user_id', $user->id)->first();
-
-            // Nếu không có bản ghi chấm công, tạo một bản ghi giả (hoặc có thể bỏ qua nếu không cần)
-            if (!$attendance) {
-                $attendance = new Attendance([
-                    'user_id' => $user->id,
-                    'date' => Carbon::today(),
-                    'check_in' => null, // Không có giờ vào
-                    'check_out' => null, // Không có giờ ra
-                    'status' => 'absent', // Chưa chấm công thì là vắng
-                ]);
-            }
-            $attendance->date = Carbon::parse($attendance->date);
-
-            // Thêm thông tin chấm công vào mảng attendances
-            $attendances[] = $attendance;
+        for ($date = $startOfMonth->copy(); $date->lte($endOfMonth); $date->addDay()) {
+            $daysInMonth->push($date->copy());
         }
 
-        // Trả về view với dữ liệu attendances
-        return view('admin.attendances.index', compact('attendances'));
+        $attendances = Attendance::whereMonth('date', $month)
+            ->whereYear('date', $year)
+            ->get()
+            ->map(function ($item) {
+                $item->date = Carbon::parse($item->date);
+                return $item;
+            })
+            ->groupBy(function ($item) {
+                return $item->user_id . '-' . $item->date->format('Y-m-d');
+            });
+
+
+        return view('admin.attendances.index', compact('users', 'daysInMonth', 'attendances'));
     }
+
     public function showForAdmin(Attendance $attendance)
     {
+        $this->authorizeRole('admin');
         $attendance->date = Carbon::parse($attendance->date);
+        $attendances = Attendance::all();
 
-        return view('admin.attendances.show', compact('attendance'));
+        return view('admin.attendances.detail', compact('attendance'));
     }
     public function updateForAdmin(Request $request, Attendance $attendance)
     {
+        $this->authorizeRole('admin');
         // Validate dữ liệu nhập vào
         $validated = $request->validate([
             'status' => 'required|string|in:present,absent,late',
@@ -215,8 +225,100 @@ class AttendanceController extends Controller
     }
     public function destroyForAdmin(Attendance $attendance)
     {
+        $this->authorizeRole('admin');
         // Xóa bản ghi chấm công
         $attendance->delete();
         return redirect()->route('admin.attendances.index')->with('success', 'Đã xóa chấm công');
     }
+    public function checkIn(Request $request)
+    {
+        $this->authorizeRole('staff');
+        $user = Auth::user();
+        $today = Carbon::today();
+
+        $existing = Attendance::where('user_id', $user->id)
+            ->whereDate('date', $today)
+            ->first();
+
+        if ($existing && $existing->check_in) {
+            return redirect()->route('employee.index')->with('error', 'Bạn đã check-in hôm nay.');
+        }
+
+        $now = Carbon::now();
+        $status = $now->gt(Carbon::createFromTime(8, 15, 0)) ? 'late' : 'present';
+
+        if (!$existing) {
+            Attendance::create([
+                'user_id' => $user->id,
+                'date' => $today,
+                'check_in' => $now->format('H:i:s'),
+                'status' => $status,
+            ]);
+        } else {
+            $existing->update([
+                'check_in' => $now->format('H:i:s'),
+                'status' => $status,
+            ]);
+        }
+
+        return redirect()->route('employee.index')->with('success', 'Check-in thành công!');
+    }
+    public function checkOut(Request $request)
+    {
+        $this->authorizeRole('staff');
+        $user = Auth::user();
+        $today = Carbon::today();
+
+        $attendance = Attendance::where('user_id', $user->id)
+            ->whereDate('date', $today)
+            ->first();
+
+        if (!$attendance || $attendance->check_out) {
+            return redirect()->route('employee.index')->with('error', 'Bạn chưa check-in hoặc đã check-out rồi.');
+        }
+
+        $attendance->update([
+            'check_out' => Carbon::now()->format('H:i:s'),
+        ]);
+
+        return redirect()->route('employee.index')->with('success', 'Check-out thành công!');
+    }
+    public function markAbsent(Request $request)
+    {
+        $this->authorizeRole('staff');
+        $user = Auth::user();
+        $today = Carbon::today();
+
+        $existing = Attendance::where('user_id', $user->id)
+            ->whereDate('date', $today)
+            ->first();
+
+        if ($existing) {
+            return redirect()->route('employee.index')->with('error', 'Bạn đã chấm công hôm nay.');
+        }
+
+        Attendance::create([
+            'user_id' => $user->id,
+            'date' => $today,
+            'status' => 'absent',
+        ]);
+
+        return redirect()->route('employee.index')->with('success', 'Đã ghi nhận nghỉ phép!');
+    }
+    public function showDetailForAdmin($id)
+    {
+        $this->authorizeRole('admin');
+        $attendance = Attendance::findOrFail($id);
+        $attendance->date = Carbon::parse($attendance->date);
+        return view('admin.attendances.detail', compact('attendance'));
+    }
+    public function editForAdmin($id)
+    {
+        $this->authorizeRole('admin');
+        $attendance = Attendance::findOrFail($id);
+        $attendance->date = Carbon::parse($attendance->date);
+        return view('admin.attendances.edit', compact('attendance'));
+    }
+
+
 }

@@ -49,4 +49,17 @@ class User extends Authenticatable
   {
     return $this->belongsTo(Position::class);
   }
+  public function salary()
+  {
+    return $this->hasOne(Salary::class);
+  }
+  public function attendances()
+  {
+    return $this->hasMany(\App\Models\Attendance::class);
+  }
+  public function rewards()
+  {
+    return $this->hasMany(Reward::class);
+  }
+
 }

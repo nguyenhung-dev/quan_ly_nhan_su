@@ -12,6 +12,7 @@ class PositionController extends Controller
      */
     public function index()
     {
+        $this->authorizeRole('admin');
         return view('admin.position.index', [
             'data' => Position::paginate(),
         ]);
@@ -22,6 +23,7 @@ class PositionController extends Controller
      */
     public function create()
     {
+        $this->authorizeRole('admin');
         $positions = Position::all();
         return view('admin.position.create', compact('positions'));
     }
@@ -31,6 +33,7 @@ class PositionController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeRole('admin');
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
@@ -53,6 +56,7 @@ class PositionController extends Controller
      */
     public function edit(Position $position)
     {
+        $this->authorizeRole('admin');
         return view('admin.position.edit', [
             'position' => $position,
         ]);
@@ -63,6 +67,7 @@ class PositionController extends Controller
      */
     public function update(Request $request, Position $position)
     {
+        $this->authorizeRole('admin');
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
@@ -78,6 +83,7 @@ class PositionController extends Controller
      */
     public function destroy(Position $position)
     {
+        $this->authorizeRole('admin');
         $position->delete();
         return redirect()->route('admin.position.index')->with('success', 'Position deleted successfully.');
     }

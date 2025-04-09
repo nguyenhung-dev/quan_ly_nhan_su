@@ -12,7 +12,6 @@
         <span>Xin chào, </span>
         <span>@yield('username')</span>
         <img src="{{ asset('storage/' . trim($__env->yieldContent('avatar'))) }}" alt="avatar" width="45" height="45">
-
       </a>
     </div>
   </div>
@@ -24,8 +23,6 @@
   <div class="main-dashboard">
     <ul>
       <li><a href="/employee"><i class="fa-solid fa-calendar-days"></i>Chấm công</a></li>
-      <li><a href=""><i class="fa-solid fa-clock-rotate-left"></i></i>Lịch sử chấm công</a></li>
-      <li> <a href=""><i class="fa-solid fa-award"></i>Lương / Thưởng</a></li>
       <li> <a href="/employee/my-info"><i class="fa-solid fa-user"></i>Thông tin cá nhân</a></li>
     </ul>
     <form id="logout-form" action="{{ route('logout') }}" method="POST">

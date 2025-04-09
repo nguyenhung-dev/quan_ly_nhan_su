@@ -32,3 +32,8 @@ li {
     object-fit: cover;
     object-position: top;
 }
+.btn-attendance {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}

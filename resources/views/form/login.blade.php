@@ -31,10 +31,9 @@
     }
 
     .login-container input {
-      width: 100%;
+      width: 92%;
       padding: 12px 15px;
       margin: 10px 0;
-      border: 1px solid #ccc;
       border-radius: 8px;
       font-size: 16px;
     }
@@ -80,9 +79,11 @@
 
     <form method="POST" action="{{ route('login.submit') }}">
       @csrf
-      <input type="email" name="email" placeholder="Email" required>
-      <input type="password" name="password" placeholder="Mật khẩu" required>
-      <input type="hidden" name="type" value="staff" id="user-type">
+      <div style="width: 100%; overflow: hidden;">
+        <input type="email" name="email" placeholder="Email" required>
+        <input type="password" name="password" placeholder="Mật khẩu" required>
+        <input type="hidden" name="type" value="staff" id="user-type">
+      </div>
       <button type="submit">Đăng nhập</button>
     </form>
 

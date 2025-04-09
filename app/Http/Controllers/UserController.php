@@ -16,6 +16,7 @@ class UserController extends Controller
    */
   public function index()
   {
+    $this->authorizeRole('admin');
     $data = User::paginate();
     return view('admin.user.index', compact('data', ));
   }
@@ -25,6 +26,7 @@ class UserController extends Controller
    */
   public function create()
   {
+    $this->authorizeRole('admin');
     $positions = Position::all();
     return view('admin.user.create', compact('positions'));
   }
@@ -34,8 +36,8 @@ class UserController extends Controller
    */
   public function store(Request $request)
   {
+    $this->authorizeRole('admin');
 
-    // Validate dữ liệu
     $validated = $request->validate([
       'name' => 'required|string|max:255',
       'email' => 'required|email|unique:users,email',
@@ -48,17 +50,13 @@ class UserController extends Controller
       'gender' => 'nullable|in:male,female,other',
       'position_id' => 'required|exists:positions,id',
     ]);
-
-    // Nếu có avatar, xử lý upload
     if ($request->hasFile('avatar')) {
       $avatarPath = $request->file('avatar')->store('avatars', 'public');
       $validated['avatar'] = $avatarPath;
     }
 
-    // Mã hóa password trước khi lưu
     $validated['password'] = Hash::make($request->password);
 
-    // Tạo user
     User::create($validated);
 
     return redirect()->route('admin.users.index');
@@ -77,6 +75,7 @@ class UserController extends Controller
    */
   public function edit(User $user)
   {
+    $this->authorizeRole('admin');
     $positions = Position::all();
     return view('admin.user.edit', compact('user', 'positions'));
   }
@@ -86,7 +85,7 @@ class UserController extends Controller
    */
   public function update(Request $request, User $user)
   {
-    // Validate dữ liệu
+    $this->authorizeRole('admin');
     $validated = $request->validate([
       'name' => 'required|string|max:255',
       'email' => 'required|email|unique:users,email,' . $user->id,
@@ -100,36 +99,37 @@ class UserController extends Controller
       'position_id' => 'required|exists:positions,id',
     ]);
 
-    // Nếu có avatar, xử lý upload
     if ($request->hasFile('avatar')) {
-      // Xóa ảnh cũ nếu có
+
       if ($user->avatar) {
         Storage::delete('public/' . $user->avatar);
       }
-      // Lưu ảnh mới
       $avatarPath = $request->file('avatar')->store('avatars', 'public');
       $validated['avatar'] = $avatarPath;
     }
 
-    // Nếu có thay đổi mật khẩu, mã hóa và cập nhật
     if ($request->filled('password')) {
       $validated['password'] = Hash::make($request->password);
     } else {
       $validated['password'] = $user->password;
     }
 
-    // Cập nhật dữ liệu người dùng
     $user->update($validated);
 
     return redirect()->route('admin.users.index')->with('success', 'Cập nhật tài khoản thành công');
   }
-
 
   /**
    * Remove the specified resource from storage.
    */
   public function destroy(User $user)
   {
+    $this->authorizeRole('admin');
+
+    if ($user->id == Auth::id()) {
+      return redirect()->route('admin.users.index')->with('error', 'Không thể xóa tài khoản đang đăng nhập');
+    }
+
     $user->delete();
     return redirect()->route('admin.users.index')->with('success', 'Xóa tài khoản thành công');
   }
